@@ -1,15 +1,3 @@
-import { DefaultApi } from 'ipfs-search-client';
-
-// Causal chain for query: URL -> route -> store -> results view -> search()
-
-const api = new DefaultApi();
-
-const initialResults = {
-  total: 0,
-  max_score: 0.0,
-  hits: [],
-};
-
 const initialQuery = {
   user_query: '',
   type: 'any',
@@ -48,10 +36,6 @@ function queryParamsToState(params) {
   };
 }
 
-const getters = {
-  stateToQueryParams,
-};
-
 function getLastSeenFilters(lastSeen) {
   if (lastSeen) {
     return [`last-seen:${lastSeen}`];
@@ -76,24 +60,16 @@ function getSizeFilters(size) {
 function getFilters(filters) {
   const lastSeenFilters = getLastSeenFilters(filters.lastSeen);
   const sizeFilters = getSizeFilters(filters.size);
-  const fl = [...lastSeenFilters, ...sizeFilters];
-  return fl.join(' ');
+  return [...lastSeenFilters, ...sizeFilters];
 }
 
-const actions = {
-  search({ state, commit }) {
-    commit('setLoading');
+function apiQueryString(state) {
+  return [state.query.user_query, ...getFilters(state.query.filters)].join(' ');
+}
 
-    // Compose querystring query
-    const query = `${state.query.user_query} ${getFilters(state.query.filters)}`;
-
-    api.searchGet(query, state.query.type, state.query.page).then((results) => {
-      commit('setResults', results);
-    }).catch((err) => {
-      commit('setError');
-      console.error('Error from searchApi.searchGet', err);
-    });
-  },
+const getters = {
+  stateToQueryParams,
+  apiQueryString,
 };
 
 const mutations = {
@@ -122,37 +98,13 @@ const mutations = {
   setSizeFilter(state, size) {
     state.query.filters.size = size;
   },
-
-  // Mutations relating to search queries
-  setLoading(state) {
-    state.results = initialResults;
-    state.loading = true;
-    state.error = false;
-  },
-  setError(state) {
-    state.loading = false;
-    state.error = true;
-  },
-  setResults(state, results) {
-    state.loading = false;
-    state.results = results;
-  },
 };
 
-const state = () => ({
-  // Initial query values; to be set from $router.query.params from view.
-  // Note that these are raw values, the labels for options and the options are
-  // not (currently) managed here.
-  query: initialQuery,
-  loading: false,
-  error: false,
-  results: initialResults,
-});
+const state = () => ({ ...initialQuery }); // Copy fields, prevent reference.
 
 export default {
   namespaced: true,
   state,
   getters,
-  actions,
   mutations,
 };
